@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * This class defines all tag model relevant keys.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.1.0.1, Jan 28, 2019
+ * @version 1.1.0.3, Jun 26, 2019
  */
 public final class Tag {
 
@@ -56,7 +56,7 @@ public final class Tag {
     /**
      * Tag title pattern string.
      */
-    public static final String TAG_TITLE_PATTERN_STR = "[\\u4e00-\\u9fa5,\\w,&,\\+,\\-,\\.]+";
+    public static final String TAG_TITLE_PATTERN_STR = "[\\u4e00-\\u9fa5\\w&#+\\-.]+";
 
     /**
      * Tag title pattern.
@@ -67,6 +67,11 @@ public final class Tag {
      * Max tag count.
      */
     public static final int MAX_TAG_COUNT = 4;
+
+    /**
+     * Max length of a tag.
+     */
+    public static final int MAX_LENGTH = 16;
 
     /**
      * Formats the specified tags.
@@ -103,7 +108,7 @@ public final class Tag {
                 continue;
             }
 
-            if (StringUtils.length(title) > 12) {
+            if (StringUtils.length(title) > MAX_LENGTH) {
                 continue;
             }
 

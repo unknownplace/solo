@@ -43,7 +43,6 @@ import org.b3log.solo.event.EventTypes;
 import org.b3log.solo.model.*;
 import org.b3log.solo.processor.console.ConsoleRenderer;
 import org.b3log.solo.service.*;
-import org.b3log.solo.util.Emotions;
 import org.b3log.solo.util.Markdowns;
 import org.b3log.solo.util.Skins;
 import org.b3log.solo.util.Solos;
@@ -60,7 +59,7 @@ import java.util.*;
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
  * @author <a href="http://zephyr.b3log.org">Zephyr</a>
- * @version 1.4.5.4, Feb 27, 2019
+ * @version 1.4.5.7, May 18, 2019
  * @since 0.3.1
  */
 @RequestProcessor
@@ -170,8 +169,7 @@ public class ArticleProcessor {
         }
 
         try {
-            String html = Emotions.convert(markdownText);
-            html = Markdowns.toHTML(html);
+            final String html = Markdowns.toHTML(markdownText);
             result.put(Common.DATA, html);
         } catch (final Exception e) {
             LOGGER.log(Level.ERROR, e.getMessage(), e);
@@ -699,7 +697,7 @@ public class ArticleProcessor {
      */
     @RequestProcessing(value = "/article", method = HttpMethod.GET)
     public void showArticle(final RequestContext context) {
-        // See PermalinkHandler#dispatchToArticleOrPageProcessor()
+        // See PermalinkHandler#dispatchToArticleProcessor()
         final JSONObject article = (JSONObject) context.attr(Article.ARTICLE);
         if (null == article) {
             context.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -713,14 +711,6 @@ public class ArticleProcessor {
         final AbstractFreeMarkerRenderer renderer = new SkinRenderer(context, "article.ftl");
 
         try {
-            final JSONObject preference = optionQueryService.getPreference();
-            final boolean allowVisitDraftViaPermalink = preference.getBoolean(Option.ID_C_ALLOW_VISIT_DRAFT_VIA_PERMALINK);
-            if (Article.ARTICLE_STATUS_C_PUBLISHED != article.optInt(Article.ARTICLE_STATUS) && !allowVisitDraftViaPermalink) {
-                context.sendError(HttpServletResponse.SC_NOT_FOUND);
-
-                return;
-            }
-
             LOGGER.log(Level.TRACE, "Article [title={0}]", article.getString(Article.ARTICLE_TITLE));
             articleQueryService.markdown(article);
 
@@ -729,6 +719,7 @@ public class ArticleProcessor {
             // For <meta name="description" content="${article.articleAbstract}"/>
             final String metaDescription = Jsoup.parse(article.optString(Article.ARTICLE_ABSTRACT)).text();
             article.put(Article.ARTICLE_ABSTRACT, metaDescription);
+            final JSONObject preference = optionQueryService.getPreference();
             if (preference.getBoolean(Option.ID_C_ENABLE_ARTICLE_UPDATE_HINT)) {
                 article.put(Common.HAS_UPDATED, articleQueryService.hasUpdated(article));
             } else {
@@ -917,7 +908,18 @@ public class ArticleProcessor {
 
         Stopwatchs.start("Get Article Sign");
         LOGGER.debug("Getting article sign....");
-        article.put(Common.ARTICLE_SIGN, articleQueryService.getSign(article.getString(Article.ARTICLE_SIGN_ID), preference));
+        final JSONObject sign = articleQueryService.getSign(article.getString(Article.ARTICLE_SIGN_ID), preference);
+        final String articleTitle = article.optString(Article.ARTICLE_TITLE);
+        final String author = article.optString(Common.AUTHOR_NAME);
+        final String url = Latkes.getServePath() + article.optString(Article.ARTICLE_PERMALINK);
+        String signHtml = sign.optString(Sign.SIGN_HTML);
+        // 签名档内置模板变量 https://github.com/b3log/solo/issues/12758
+        signHtml = StringUtils.replace(signHtml, "{title}", articleTitle);
+        signHtml = StringUtils.replace(signHtml, "{author}", author);
+        signHtml = StringUtils.replace(signHtml, "{url}", url);
+        signHtml = StringUtils.replace(signHtml, "{blog}", Latkes.getServePath());
+        sign.put(Sign.SIGN_HTML, signHtml);
+        article.put(Common.ARTICLE_SIGN, sign);
         LOGGER.debug("Got article sign");
         Stopwatchs.end();
 

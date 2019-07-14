@@ -42,7 +42,7 @@ import org.json.JSONObject;
  * Plugin console request processing.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.0.0.10, Mar 29, 2019
+ * @version 1.0.0.12, Apr 22, 2019
  * @since 0.4.0
  */
 @RequestProcessor
@@ -87,12 +87,8 @@ public class PageConsole {
      *     "page": {
      *         "oId": "",
      *         "pageTitle": "",
-     *         "pageContent": "",
      *         "pageOrder": int,
-     *         "pageCommentCount": int,
      *         "pagePermalink": "",
-     *         "pageCommentable": boolean,
-     *         "pageType": "",
      *         "pageOpenTarget": "",
      *         "pageIcon": ""
      *     }
@@ -175,10 +171,7 @@ public class PageConsole {
      * {
      *     "page": {
      *         "pageTitle": "",
-     *         "pageContent": "",
      *         "pagePermalink": "" // optional
-     *         "pageCommentable": boolean,
-     *         "pageType": "",
      *         "pageOpenTarget": "",
      *         "pageIcon": ""
      *     }
@@ -278,10 +271,8 @@ public class PageConsole {
      *     "page": {
      *         "oId": "",
      *         "pageTitle": "",
-     *         "pageContent": ""
      *         "pageOrder": int,
      *         "pagePermalink": "",
-     *         "pageCommentCount": int,
      *         "pageIcon": ""
      *     }
      * }
@@ -328,7 +319,6 @@ public class PageConsole {
      *     "pages": [{
      *         "oId": "",
      *         "pageTitle": "",
-     *         "pageCommentCount": int,
      *         "pageOrder": int,
      *         "pagePermalink": "",
      *         .{@link PageMgmtService...}
@@ -353,11 +343,6 @@ public class PageConsole {
 
             for (int i = 0; i < pages.length(); i++) {
                 final JSONObject page = pages.getJSONObject(i);
-                if ("page".equals(page.optString(Page.PAGE_TYPE))) {
-                    final String permalink = page.optString(Page.PAGE_PERMALINK);
-                    page.put(Page.PAGE_PERMALINK, Latkes.getServePath() + permalink);
-                }
-
                 String title = page.optString(Page.PAGE_TITLE);
                 title = StringEscapeUtils.escapeXml(title);
                 page.put(Page.PAGE_TITLE, title);

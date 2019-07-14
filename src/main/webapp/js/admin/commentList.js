@@ -80,14 +80,9 @@ admin.commentList = {
           commentsData = []
         for (var i = 0; i < comments.length; i++) {
           var type = 'Article'
-          if (comments[i].type === 'pageComment') {
-            type = 'Page'
-          }
-
           commentsData[i] = {}
-
           commentsData[i].content = '<div class="vditor-reset">' +
-            Util.replaceEmString(comments[i].commentContent) +
+            comments[i].commentContent +
             '</div><span class=\'table-tag\'> on &nbsp;&nbsp;</span><a href=\'' +
             Label.servePath + comments[i].commentSharpURL +
             '\' target=\'_blank\'>' + comments[i].commentTitle +
@@ -125,7 +120,7 @@ admin.commentList = {
   /*
    * 删除评论
    * @id 评论 id
-   * @type 评论类型：文章/自定义页面
+   * @type 评论类型：文章
    */
   del: function (id, type) {
     if (confirm(Label.confirmRemoveLabel + Label.commentLabel + '?')) {

@@ -19,6 +19,7 @@ package org.b3log.solo.processor;
 
 import org.apache.commons.lang.StringUtils;
 import org.b3log.latke.Keys;
+import org.b3log.latke.Latkes;
 import org.b3log.latke.service.ServiceException;
 import org.b3log.solo.AbstractTestCase;
 import org.b3log.solo.MockHttpServletRequest;
@@ -40,7 +41,7 @@ import java.io.StringReader;
  * {@link CommentProcessorTestCase} test case.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.0.0.5, Feb 10, 2019
+ * @version 1.0.0.6, Apr 19, 2019
  * @since 1.7.0
  */
 @Test(suiteName = "processor")
@@ -54,37 +55,6 @@ public class CommentProcessorTestCase extends AbstractTestCase {
     @Test
     public void init() throws Exception {
         super.init();
-    }
-
-    /**
-     * addPageComment.
-     *
-     * @throws Exception exception
-     */
-    @Test(dependsOnMethods = "init")
-    public void addPageComment() throws Exception {
-        final MockHttpServletRequest request = mockRequest();
-        request.setRequestURI("/page/comments");
-        request.setMethod("POST");
-        request.setAttribute(Keys.TEMAPLTE_DIR_NAME, Option.DefaultPreference.DEFAULT_SKIN_DIR_NAME);
-
-        final JSONObject requestJSON = new JSONObject();
-        requestJSON.put("oId", addPage());
-        requestJSON.put("commentName", "88250");
-        requestJSON.put("commentEmail", "d@hacpai.com");
-        requestJSON.put("commentURL", "https://hacpai.com");
-        requestJSON.put("commentContent", "测试评论");
-
-        final BufferedReader reader = new BufferedReader(new StringReader(requestJSON.toString()));
-        request.setReader(reader);
-
-        mockAdminLogin(request);
-
-        final MockHttpServletResponse response = mockResponse();
-        mockDispatcherServletService(request, response);
-
-        final String content = response.body();
-        Assert.assertTrue(StringUtils.contains(content, "\"sc\":true"));
     }
 
     /**
@@ -125,11 +95,8 @@ public class CommentProcessorTestCase extends AbstractTestCase {
         final JSONObject page = new JSONObject();
         requestJSONObject.put(Page.PAGE, page);
 
-        page.put(Page.PAGE_CONTENT, "page1 content");
-        page.put(Page.PAGE_PERMALINK, "page1 permalink");
+        page.put(Page.PAGE_PERMALINK, Latkes.getServePath() + "/p1");
         page.put(Page.PAGE_TITLE, "page1 title");
-        page.put(Page.PAGE_COMMENTABLE, true);
-        page.put(Page.PAGE_TYPE, "page");
         page.put(Page.PAGE_OPEN_TARGET, "_self");
 
         return pageMgmtService.addPage(requestJSONObject);

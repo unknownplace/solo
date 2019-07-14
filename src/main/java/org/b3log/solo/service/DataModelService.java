@@ -59,7 +59,7 @@ import static org.b3log.solo.model.Article.ARTICLE_CONTENT;
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
  * @author <a href="http://vanessa.b3log.org">Liyuan Li</a>
- * @version 1.7.0.9, Apr 8, 2019
+ * @version 1.7.0.10, Apr 22, 2019
  * @since 0.3.1
  */
 @Service
@@ -516,7 +516,6 @@ public class DataModelService {
             final List<JSONObject> recentComments = commentRepository.getRecentComments(recentCommentDisplayCnt);
             for (final JSONObject comment : recentComments) {
                 String commentContent = comment.optString(Comment.COMMENT_CONTENT);
-                commentContent = Emotions.convert(commentContent);
                 commentContent = Markdowns.toHTML(commentContent);
                 commentContent = Jsoup.clean(commentContent, Whitelist.relaxed());
                 comment.put(Comment.COMMENT_CONTENT, commentContent);
@@ -863,14 +862,6 @@ public class DataModelService {
         try {
             LOGGER.debug("Filling page navigations....");
             final List<JSONObject> pages = pageRepository.getPages();
-            for (final JSONObject page : pages) {
-                if ("page".equals(page.optString(Page.PAGE_TYPE))) {
-                    final String permalink = page.optString(Page.PAGE_PERMALINK);
-
-                    page.put(Page.PAGE_PERMALINK, Latkes.getServePath() + permalink);
-                }
-            }
-
             dataModel.put(Common.PAGE_NAVIGATIONS, pages);
         } catch (final RepositoryException e) {
             LOGGER.log(Level.ERROR, "Fills page navigations failed", e);

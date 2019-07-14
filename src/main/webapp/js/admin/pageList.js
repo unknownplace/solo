@@ -20,7 +20,7 @@
  *
  * @author <a href="http://vanessa.b3log.org">Liyuan Li</a>
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.3.0.0, Feb 6, 2019
+ * @version 1.3.0.1, Apr 22, 2019
  */
 
 /* page-list 相关操作 */
@@ -32,9 +32,8 @@ admin.pageList = {
         currentPage: 1
     },
     id: "",
-    type: "link",
-    /* 
-     * 初始化 table, pagination, comments dialog
+    /*
+     * 初始化 table, pagination
      */
     init: function (page) {
         this.tablePagination.buildTable([{
@@ -57,43 +56,9 @@ admin.pageList = {
                 text: Label.openMethodLabel,
                 index: "pageTarget",
                 width: 120
-            }, {
-                style: "padding-left: 12px;",
-                text: Label.typeLabel,
-                index: "pageType",
-                width: 80
-            }, {
-                text: Label.commentLabel,
-                index: "comments",
-                width: 80,
-                style: "padding-left: 12px;"
             }]);
         this.tablePagination.initPagination();
-        this.tablePagination.initCommentsDialog();
         this.getList(page);
-
-        admin.editors.pageEditor = new SoloEditor({
-            id: "pageContent"
-        });
-
-        // select type
-        $(".fn-type").click(function () {
-            var $it = $(this);
-            if ($it.hasClass("selected")) {
-                return;
-            }
-
-            $(".fn-type").removeClass("selected");
-            $it.addClass("selected");
-
-            admin.pageList.type = $it.data("type");
-
-            if (admin.pageList.type === "page") {
-                $("#pagePagePanel").slideDown();
-            } else {
-                $("#pagePagePanel").slideUp();
-            }
-        });
     },
     /* 
      * 根据当前页码获取列表
@@ -149,12 +114,9 @@ admin.pageList = {
                     pageData[i].pagePermalink = "<a class='no-underline' href='" + pages[i].pagePermalink + "' target='_blank'>"
                             + pages[i].pagePermalink + "</a>";
                     pageData[i].pageTarget = pages[i].pageOpenTarget;
-                    pageData[i].pageType = pages[i].pageType;
-                    pageData[i].comments = pages[i].pageCommentCount;
                     pageData[i].expendRow = "<span><a href='" + pages[i].pagePermalink + "' target='_blank'>" + Label.viewLabel + "</a>  \
                                 <a href='javascript:void(0)' onclick=\"admin.pageList.get('" + pages[i].oId + "')\">" + Label.updateLabel + "</a>\
-                                <a href='javascript:void(0)' onclick=\"admin.pageList.del('" + pages[i].oId + "', '" + encodeURIComponent(pages[i].pageTitle) + "')\">" + Label.removeLabel + "</a>\
-                                <a href='javascript:void(0)' onclick=\"admin.comment.open('" + pages[i].oId + "', 'page')\">" + Label.commentLabel + "</a></span>";
+                                <a href='javascript:void(0)' onclick=\"admin.pageList.del('" + pages[i].oId + "', '" + encodeURIComponent(pages[i].pageTitle) + "')\">" + Label.removeLabel + "</a></span>";
                 }
 
                 that.tablePagination.updateTablePagination(pageData, pageNum, result.pagination);
@@ -188,15 +150,6 @@ admin.pageList = {
                 $("#pagePermalink").val(result.page.pagePermalink);
                 $("#pageTarget").val(result.page.pageOpenTarget);
                 $("#pageIcon").val(result.page.pageIcon);
-                if (result.page.pageType === "page") {
-                    $($(".fn-type").get(1)).click();
-                } else {
-                    $($(".fn-type").get(0)).click();
-                }
-                $("#pageCommentable").prop("checked", result.page.pageCommentable);
-
-                admin.editors.pageEditor.setContent(result.page.pageContent);
-
                 $("#loadMsg").text("");
             }
         });
@@ -249,20 +202,12 @@ admin.pageList = {
             $("#loadMsg").text(Label.loadingLabel);
             $("#tipMsg").text("");
 
-            var pageContent = admin.editors.pageEditor.getContent();
-
             var pagePermalink = $("#pagePermalink").val().replace(/(^\s*)|(\s*$)/g, "");
-            if (admin.pageList.type === "link") {
-                pagePermalink = Util.proessURL(pagePermalink);
-            }
 
             var requestJSONObject = {
                 "page": {
                     "pageTitle": $("#pageTitle").val(),
-                    "pageContent": pageContent,
                     "pagePermalink": pagePermalink,
-                    "pageCommentable": $("#pageCommentable").prop("checked"),
-                    "pageType": admin.pageList.type,
                     "pageOpenTarget": $("#pageTarget").val(),
                     "pageIcon": $("#pageIcon").val()
                 }
@@ -284,11 +229,7 @@ admin.pageList = {
                     $("#pagePermalink").val("");
                     $("#pageTitle").val("");
                     $("#pageIcon").val("");
-                    $("#pageCommentable").prop("cheked", false);
                     $("#pageTarget").val("_self");
-                    $($(".fn-type").get(0)).click();
-
-                    admin.editors.pageEditor.setContent("");
 
                     if (admin.pageList.pageInfo.currentCount === Label.PAGE_SIZE &&
                             admin.pageList.pageInfo.currentPage === admin.pageList.pageInfo.pageCount) {
@@ -314,22 +255,13 @@ admin.pageList = {
             $("#loadMsg").text(Label.loadingLabel);
             $("#tipMsg").text("");
 
-            var pageContent = admin.editors.pageEditor.getContent();
-
             var pagePermalink = $("#pagePermalink").val().replace(/(^\s*)|(\s*$)/g, "");
-            if (admin.pageList.type === "link") {
-                pagePermalink = Util.proessURL(pagePermalink);
-            }
-
 
             var requestJSONObject = {
                 "page": {
                     "pageTitle": $("#pageTitle").val(),
                     "oId": this.id,
-                    "pageContent": pageContent,
                     "pagePermalink": pagePermalink,
-                    "pageCommentable": $("#pageCommentable").prop("checked"),
-                    "pageType": admin.pageList.type,
                     "pageOpenTarget": $("#pageTarget").val(),
                     "pageIcon": $("#pageIcon").val()
                 }
@@ -353,12 +285,7 @@ admin.pageList = {
                     $("#pageTitle").val("");
                     $("#pageIcon").val("");
                     $("#pagePermalink").val("");
-                    $("#pageCommentable").prop("cheked", false);
                     $("#pageTarget").val("_self");
-                    $($(".fn-type").get(0)).click();
-
-                    admin.editors.pageEditor.setContent("");
-
                     $("#loadMsg").text("");
                 }
             });
@@ -371,8 +298,7 @@ admin.pageList = {
         if ($("#pageTitle").val().replace(/\s/g, "") === "") {
             $("#tipMsg").text(Label.titleEmptyLabel);
             $("#pageTitle").focus();
-        } else if (admin.pageList.type === "link" &&
-                $("#pagePermalink").val().replace(/\s/g, "") === "") {
+        } else if ($("#pagePermalink").val().replace(/\s/g, "") === "") {
             $("#tipMsg").text(Label.linkEmptyLabel);
         } else {
             return true;

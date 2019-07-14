@@ -1,6 +1,6 @@
 {
   "name": "Solo",
-  "version": "3.5.0",
+  "version": "3.6.3",
   "description": " 一款小而美的博客系统，专为程序员设计。",
   "homepage": "https://github.com/b3log/solo",
   "repository": {
@@ -28,14 +28,14 @@
     }
   ],
   "devDependencies": {
-    "del": "^3.0.0",
-    "gulp": "^4.0.0",
+    "del": "^4.1.1",
+    "gulp": "^4.0.1",
     "gulp-concat": "^2.6.1",
     "gulp-rename": "^1.4.0",
-    "gulp-sass": "^4.0.1",
-    "gulp-uglify": "^3.0.1"
+    "gulp-sass": "^4.0.2",
+    "gulp-uglify": "^3.0.2"
   },
   "dependencies": {
-    "vditor": "^1.2.8"
+    "vditor": "^1.5.12"
   }
 }

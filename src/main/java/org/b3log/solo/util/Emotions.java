@@ -18,64 +18,71 @@
 package org.b3log.solo.util;
 
 import com.vdurmont.emoji.EmojiParser;
+import org.apache.commons.lang.StringUtils;
 import org.b3log.latke.Latkes;
+import org.b3log.solo.SoloServletListener;
 
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * Emotions utilities.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.0.0.2, Mar 5, 2019
+ * @author <a href="http://vanessa.b3log.org">Vanessa</a>
+ * @version 1.1.1.0, Jun 1, 2019
  * @since 1.4.0
  */
 public final class Emotions {
 
     /**
-     * Emoji pattern.
+     * Emoji picture paths.
      */
-    public static final Pattern EMOJI_PATTERN = Pattern.compile(":.+:");
-
-    /**
-     * Replaces the emoji's unicode occurrences by one of their alias (between 2 ':'). Example: "😄" gives ":smile:".
-     *
-     * @param content the string to parse
-     * @return the string with the emojis replaced by their alias.
-     */
-    public static String toAliases(final String content) {
-        return EmojiParser.parseToAliases(content, EmojiParser.FitzpatrickAction.IGNORE);
-    }
+    private static final Set<String> EMOJI_PIC_PATHS = SoloServletListener.getServletContext().getResourcePaths("/images/emoji/");
 
     /**
      * Converts the specified content with emotions.
-     * <p>
-     * <ol>
-     * <li>Emoji: http://www.emoji-cheat-sheet.com</li>
-     * </ol>
      *
      * @param content the specified content
      * @return converted content
      */
     public static String convert(final String content) {
-        final String staticServePath = Latkes.getStaticServePath();
-
         String ret = content;
-
         if (!EMOJI_PATTERN.matcher(ret).find()) {
             return ret;
         }
 
-        for (final String emojiCode : EMOJIS) {
-            final String emoji = ":" + emojiCode + ":";
+        ret = toUnicode(ret);
+
+        for (final String emojiPic : EMOJI_PIC_PATHS) {
+            final String emojiPicName = StringUtils.substringAfter(emojiPic, "/emoji/");
+            final String emoji = StringUtils.substringBefore(emojiPicName, ".");
             String repl = "<img align=\"absmiddle\" alt=\"" + emoji + "\" class=\"emoji\" src=\""
-                    + staticServePath + "/js/lib/emojify.js-1.1.0/images/basic/" + emojiCode;
-            final String suffix = "huaji".equals(emojiCode) ? ".gif" : ".png";
-            repl += suffix + "\" title=\"" + emoji + "\" width=\"20px\" height=\"20px\"></img>";
-            ret = ret.replace(emoji, repl);
+                    + Latkes.getStaticServePath() + "/images/emoji/" + emojiPicName + "\" title=\"" + emoji + "\" width=\"20px\" height=\"20px\"></img>";
+            ret = StringUtils.replace(ret, ":" + emoji + ":", repl);
         }
 
         return ret;
     }
+
+    /**
+     * Replaces the emoji's alias by its unicode. Example: ":smile:" gives "😄".
+     *
+     * @param content the specified string to parse
+     * @return the string with the mojis replaces by their unicode
+     */
+    private static String toUnicode(final String content) {
+        String ret = EmojiParser.parseToUnicode(content);
+        ret = ret.replace("❤", "❤️");
+        ret = ret.replace("♥", "❤️");
+
+        return ret;
+    }
+
+    /**
+     * Emoji pattern.
+     */
+    private static final Pattern EMOJI_PATTERN = Pattern.compile(":.+:");
 
     /**
      * Emoji list.

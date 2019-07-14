@@ -21,7 +21,7 @@ package org.b3log.solo.model;
  * This class defines all page model relevant keys.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.1.0.1, Feb 6, 2019
+ * @version 1.2.0.0, Apr 19, 2019
  * @since 0.3.1
  */
 public final class Page {
@@ -42,48 +42,14 @@ public final class Page {
     public static final String PAGE_TITLE = "pageTitle";
 
     /**
-     * Key of content.
-     */
-    public static final String PAGE_CONTENT = "pageContent";
-
-    /**
      * Key of order.
      */
     public static final String PAGE_ORDER = "pageOrder";
 
     /**
-     * Key of comment count.
-     */
-    public static final String PAGE_COMMENT_COUNT = "pageCommentCount";
-
-    /**
      * Key of permalink.
      */
     public static final String PAGE_PERMALINK = "pagePermalink";
-
-    /**
-     * Key of comments.
-     */
-    public static final String PAGE_COMMENTS_REF = "pageComments";
-
-    /**
-     * Key of comment-able.
-     */
-    public static final String PAGE_COMMENTABLE = "pageCommentable";
-
-    /**
-     * Key of page type.
-     * <p>
-     * Available values:
-     * <ul>
-     * <li>link</li>
-     * No contents (pageContent), if users clicked, just jump to the given address specified by the permalink.
-     * <li>page</li>
-     * A normal customized page.
-     * </ul>
-     * </p>
-     */
-    public static final String PAGE_TYPE = "pageType";
 
     /**
      * Key of open target.

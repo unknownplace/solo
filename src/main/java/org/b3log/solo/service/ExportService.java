@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
  * Export service.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.1.0.5, Mar 30, 2019
+ * @version 1.1.0.7, Jun 20, 2019
  * @since 2.5.0
  */
 @Service
@@ -153,6 +153,7 @@ public class ExportService {
      */
     public void exportGitHubRepo() {
         try {
+            LOGGER.log(Level.INFO, "Github repo syncing....");
             final JSONObject preference = optionQueryService.getPreference();
             if (null == preference) {
                 return;
@@ -188,11 +189,11 @@ public class ExportService {
             }
 
             FileUtils.deleteQuietly(localFile);
-            FileUtils.deleteQuietly(new File(localFile + ".zip"));
+            FileUtils.deleteQuietly(zipFile);
 
             final JSONObject user = userRepository.getAdmin();
             final String userName = user.optString(User.USER_NAME);
-            final String userB3Ke = user.optString(UserExt.USER_B3_KEY);
+            final String userB3Key = user.optString(UserExt.USER_B3_KEY);
             final String clientTitle = preference.optString(Option.ID_C_BLOG_TITLE);
             final String clientSubtitle = preference.optString(Option.ID_C_BLOG_SUBTITLE);
 
@@ -251,7 +252,7 @@ public class ExportService {
             final HttpResponse response = HttpRequest.post("https://hacpai.com/github/repos").
                     connectionTimeout(7000).timeout(60000).trustAllCerts(true).header("User-Agent", Solos.USER_AGENT).
                     form("userName", userName,
-                            "userB3Key", userB3Ke,
+                            "userB3Key", userB3Key,
                             "clientName", "Solo",
                             "clientVersion", SoloServletListener.VERSION,
                             "clientHost", Latkes.getServePath(),

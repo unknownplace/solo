@@ -20,7 +20,7 @@
  *
  * @author <a href="http://vanessa.b3log.org">Liyuan Li</a>
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.8.0.3, Apr 2, 2019
+ * @version 1.8.0.4, Jun 7, 2019
  */
 
 /**
@@ -58,7 +58,7 @@ var Util = {
   },
   /**
    * 初始化 Pjax
-   * @param cb 除文章和自定义页面外的其他页面加载回调
+   * @param cb 除文章外的其他页面加载回调
    */
   initPjax: function (cb) {
     if ($('#pjax').length === 1) {
@@ -147,8 +147,8 @@ var Util = {
     if ($('.vditor-reset pre > code').length === 0) {
       return
     }
-    Util.addStyle('https://cdn.jsdelivr.net/npm/highlight.js@9.15.6/styles/' +
-      Label.hljsStyle + '.min.css', 'vditorHljsStyle')
+    Util.addStyle('https://cdn.jsdelivr.net/npm/vditor@1.5.12/dist/js/highlight.js@9.15.8/styles/' +
+      Label.hljsStyle + '.css', 'vditorHljsStyle')
 
     var initHljs = function () {
       hljs.initHighlighting.called = false
@@ -158,7 +158,7 @@ var Util = {
     if (!Label.markedAvailable) {
       if (typeof hljs === 'undefined') {
         $.ajax({
-          url: 'https://cdn.jsdelivr.net/npm/vditor@1.2.8/src/assets/js/highlight.pack.js',
+          url: 'https://cdn.jsdelivr.net/npm/vditor@1.5.12/dist/js/highlight.js@9.15.8/highlight.pack.js',
           dataType: 'script',
           cache: true,
           success: function () {
@@ -182,10 +182,11 @@ var Util = {
       return
     }
 
-    Util.addScript('https://cdn.jsdelivr.net/npm/vditor@1.2.8/dist/index.min.js',
+    Util.addScript('https://cdn.jsdelivr.net/npm/vditor@1.5.12/dist/index.min.js',
       'vditorScript')
 
     Vditor.mermaidRender(document.body)
+    Vditor.chartRender()
     Vditor.mathRender(document.body)
     Vditor.codeRender(document.body, Label.langLabel)
   },
@@ -224,27 +225,6 @@ var Util = {
         addKillPanel()
       }
     }
-  },
-  /**
-   * @description 替换[emXX] 为图片
-   * @param {String} str 替换字符串
-   * @returns {String} 替换后的字符
-   */
-  replaceEmString: function (str) {
-    var commentSplited = str.split('[em')
-    if (commentSplited.length === 1) {
-      return str
-    }
-
-    str = commentSplited[0]
-    for (var j = 1; j < commentSplited.length; j++) {
-      var key = commentSplited[j].substr(0, 2)
-      str += '<img width=\'20\' src=\'' + Label.staticServePath +
-        '/images/emotions/em' + key + '.png\' alt=\'' +
-        Label['em' + key + 'Label'] + '\' title=\'' +
-        Label['em' + key + 'Label'] + '\'/> ' + commentSplited[j].substr(3)
-    }
-    return str
   },
   /**
    * @description 切换到手机版
@@ -325,7 +305,7 @@ var Util = {
   replaceSideEm: function (comments) {
     for (var i = 0; i < comments.length; i++) {
       var $comment = $(comments[i])
-      $comment.html(Util.replaceEmString($comment.html()))
+      $comment.html($comment.html())
     }
   },
   /**

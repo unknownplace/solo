@@ -24,7 +24,6 @@ import org.b3log.latke.logging.Logger;
 import org.b3log.latke.repository.*;
 import org.b3log.latke.repository.annotation.Repository;
 import org.b3log.solo.cache.CommentCache;
-import org.b3log.solo.model.Article;
 import org.b3log.solo.model.Comment;
 import org.json.JSONObject;
 
@@ -90,8 +89,8 @@ public class CommentRepository extends AbstractRepository {
     }
 
     @Override
-    public void update(final String id, final JSONObject comment) throws RepositoryException {
-        super.update(id, comment);
+    public void update(final String id, final JSONObject comment, final String... propertyNames) throws RepositoryException {
+        super.update(id, comment, propertyNames);
 
         comment.put(Keys.OBJECT_ID, id);
         commentCache.putComment(comment);
@@ -165,14 +164,9 @@ public class CommentRepository extends AbstractRepository {
 
         while (iterator.hasNext()) {
             final JSONObject comment = iterator.next();
-            final String commentOnType = comment.optString(Comment.COMMENT_ON_TYPE);
-
-            if (Article.ARTICLE.equals(commentOnType)) {
-                final String articleId = comment.optString(Comment.COMMENT_ON_ID);
-
-                if (!articleRepository.isPublished(articleId)) {
-                    iterator.remove();
-                }
+            final String articleId = comment.optString(Comment.COMMENT_ON_ID);
+            if (!articleRepository.isPublished(articleId)) {
+                iterator.remove();
             }
         }
 

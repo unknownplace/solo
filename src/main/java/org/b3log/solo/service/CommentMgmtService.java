@@ -36,9 +36,7 @@ import org.b3log.solo.event.EventTypes;
 import org.b3log.solo.model.*;
 import org.b3log.solo.repository.ArticleRepository;
 import org.b3log.solo.repository.CommentRepository;
-import org.b3log.solo.repository.PageRepository;
 import org.b3log.solo.repository.UserRepository;
-import org.b3log.solo.util.Emotions;
 import org.b3log.solo.util.Markdowns;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -49,7 +47,7 @@ import java.util.Date;
  * Comment management service.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.3.4.1, Mar 29, 2019
+ * @version 1.4.0.3, Jun 6, 2019
  * @since 0.3.5
  */
 @Service
@@ -117,12 +115,6 @@ public class CommentMgmtService {
     private StatisticMgmtService statisticMgmtService;
 
     /**
-     * Page repository.
-     */
-    @Inject
-    private PageRepository pageRepository;
-
-    /**
      * Option query service.
      */
     @Inject
@@ -142,7 +134,7 @@ public class CommentMgmtService {
      *
      * @param requestJSONObject the specified comment adding request, for example,
      *                          {
-     *                          "type": "", // "article"/"page"
+     *                          "type": "", // "article"
      *                          "oId": "",
      *                          "commentName": "",
      *                          "commentURL": "",
@@ -180,13 +172,9 @@ public class CommentMgmtService {
                     return ret;
                 }
             } else {
-                final JSONObject page = pageRepository.get(id);
+                ret.put(Keys.MSG, langPropsService.get("notAllowCommentLabel"));
 
-                if (null == page || !page.optBoolean(Page.PAGE_COMMENTABLE)) {
-                    ret.put(Keys.MSG, langPropsService.get("notAllowCommentLabel"));
-
-                    return ret;
-                }
+                return ret;
             }
 
             String commentName = requestJSONObject.getString(Comment.COMMENT_NAME);
@@ -221,8 +209,6 @@ public class CommentMgmtService {
             }
 
             ret.put(Keys.STATUS_CODE, true);
-
-            commentContent = Emotions.toAliases(commentContent);
             requestJSONObject.put(Comment.COMMENT_CONTENT, commentContent);
 
             return ret;
@@ -234,125 +220,6 @@ public class CommentMgmtService {
 
             return ret;
         }
-    }
-
-    /**
-     * Adds page comment with the specified request json object.
-     *
-     * @param requestJSONObject the specified request json object, for example,
-     *                          {
-     *                          "oId": "", // page id
-     *                          "commentName": "",
-     *                          "commentURL": "", // optional
-     *                          "commentContent": "",
-     *                          "commentOriginalCommentId": "" // optional
-     *                          }
-     * @return add result, for example,      <pre>
-     * {
-     *     "oId": "", // generated comment id
-     *     "commentDate": "", // format: yyyy-MM-dd HH:mm:ss
-     *     "commentOriginalCommentName": "" // optional, corresponding to argument "commentOriginalCommentId"
-     *     "commentThumbnailURL": "",
-     *     "commentSharpURL": "",
-     *     "commentContent": "",
-     *     "commentName": "",
-     *     "commentURL": "", // optional
-     *     "isReply": boolean,
-     *     "page": {},
-     *     "commentOriginalCommentId": "" // optional
-     *     "commentable": boolean,
-     *     "permalink": "" // page.pagePermalink
-     * }
-     * </pre>
-     * @throws ServiceException service exception
-     */
-    public JSONObject addPageComment(final JSONObject requestJSONObject) throws ServiceException {
-        final JSONObject ret = new JSONObject();
-        ret.put(Common.IS_REPLY, false);
-
-        final Transaction transaction = commentRepository.beginTransaction();
-
-        try {
-            final String pageId = requestJSONObject.getString(Keys.OBJECT_ID);
-            final JSONObject page = pageRepository.get(pageId);
-            ret.put(Page.PAGE, page);
-            final String commentName = requestJSONObject.getString(Comment.COMMENT_NAME);
-            final String commentURL = requestJSONObject.optString(Comment.COMMENT_URL);
-            final String commentContent = requestJSONObject.getString(Comment.COMMENT_CONTENT);
-
-            final String originalCommentId = requestJSONObject.optString(Comment.COMMENT_ORIGINAL_COMMENT_ID);
-            ret.put(Comment.COMMENT_ORIGINAL_COMMENT_ID, originalCommentId);
-            // Step 1: Add comment
-            final JSONObject comment = new JSONObject();
-
-            comment.put(Comment.COMMENT_ORIGINAL_COMMENT_ID, "");
-            comment.put(Comment.COMMENT_ORIGINAL_COMMENT_NAME, "");
-
-            JSONObject originalComment = null;
-
-            comment.put(Comment.COMMENT_NAME, commentName);
-            comment.put(Comment.COMMENT_URL, commentURL);
-            comment.put(Comment.COMMENT_CONTENT, commentContent);
-            final JSONObject preference = optionQueryService.getPreference();
-            final Date date = new Date();
-
-            comment.put(Comment.COMMENT_CREATED, date.getTime());
-            ret.put(Comment.COMMENT_T_DATE, DateFormatUtils.format(date, "yyyy-MM-dd HH:mm:ss"));
-            ret.put("commentDate2", date);
-
-            ret.put(Common.COMMENTABLE, preference.getBoolean(Option.ID_C_COMMENTABLE) && page.getBoolean(Page.PAGE_COMMENTABLE));
-            ret.put(Common.PERMALINK, page.getString(Page.PAGE_PERMALINK));
-
-            if (StringUtils.isNotBlank(originalCommentId)) {
-                originalComment = commentRepository.get(originalCommentId);
-                if (null != originalComment) {
-                    comment.put(Comment.COMMENT_ORIGINAL_COMMENT_ID, originalCommentId);
-                    final String originalCommentName = originalComment.getString(Comment.COMMENT_NAME);
-
-                    comment.put(Comment.COMMENT_ORIGINAL_COMMENT_NAME, originalCommentName);
-                    ret.put(Comment.COMMENT_ORIGINAL_COMMENT_NAME, originalCommentName);
-
-                    ret.put(Common.IS_REPLY, true);
-                } else {
-                    LOGGER.log(Level.WARN, "Not found orginal comment[id={0}] of reply[name={1}, content={2}]", originalCommentId,
-                            commentName, commentContent);
-                }
-            }
-            setCommentThumbnailURL(comment);
-            ret.put(Comment.COMMENT_THUMBNAIL_URL, comment.getString(Comment.COMMENT_THUMBNAIL_URL));
-            comment.put(Comment.COMMENT_ON_ID, pageId);
-            comment.put(Comment.COMMENT_ON_TYPE, Page.PAGE);
-            final String commentId = Ids.genTimeMillisId();
-            ret.put(Keys.OBJECT_ID, commentId);
-            final String commentSharpURL = Comment.getCommentSharpURLForPage(page, commentId);
-            ret.put(Comment.COMMENT_NAME, commentName);
-            String cmtContent = Emotions.convert(commentContent);
-            cmtContent = Markdowns.toHTML(cmtContent);
-            cmtContent = Markdowns.clean(cmtContent);
-            ret.put(Comment.COMMENT_CONTENT, cmtContent);
-            ret.put(Comment.COMMENT_URL, commentURL);
-
-            ret.put(Comment.COMMENT_SHARP_URL, commentSharpURL);
-            comment.put(Comment.COMMENT_SHARP_URL, commentSharpURL);
-            comment.put(Keys.OBJECT_ID, commentId);
-            commentRepository.add(comment);
-            incPageCommentCount(pageId);
-
-            final JSONObject eventData = new JSONObject();
-            eventData.put(Comment.COMMENT, comment);
-            eventData.put(Page.PAGE, page);
-            eventManager.fireEventAsynchronously(new Event<>(EventTypes.ADD_COMMENT_TO_PAGE, eventData));
-
-            transaction.commit();
-        } catch (final Exception e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-
-            throw new ServiceException(e);
-        }
-
-        return ret;
     }
 
     /**
@@ -416,8 +283,7 @@ public class CommentMgmtService {
             ret.put(Common.COMMENTABLE, preference.getBoolean(Option.ID_C_COMMENTABLE) && article.getBoolean(Article.ARTICLE_COMMENTABLE));
             ret.put(Common.PERMALINK, article.getString(Article.ARTICLE_PERMALINK));
             ret.put(Comment.COMMENT_NAME, commentName);
-            String cmtContent = Emotions.convert(commentContent);
-            cmtContent = Markdowns.toHTML(cmtContent);
+            String cmtContent = Markdowns.toHTML(commentContent);
             cmtContent = Markdowns.clean(cmtContent);
             ret.put(Comment.COMMENT_CONTENT, cmtContent);
             ret.put(Comment.COMMENT_URL, commentURL);
@@ -441,7 +307,6 @@ public class CommentMgmtService {
             setCommentThumbnailURL(comment);
             ret.put(Comment.COMMENT_THUMBNAIL_URL, comment.getString(Comment.COMMENT_THUMBNAIL_URL));
             comment.put(Comment.COMMENT_ON_ID, articleId);
-            comment.put(Comment.COMMENT_ON_TYPE, Article.ARTICLE);
             final String commentId = Ids.genTimeMillisId();
             comment.put(Keys.OBJECT_ID, commentId);
             ret.put(Keys.OBJECT_ID, commentId);
@@ -467,32 +332,6 @@ public class CommentMgmtService {
         }
 
         return ret;
-    }
-
-    /**
-     * Removes a comment of a page with the specified comment id.
-     *
-     * @param commentId the given comment id
-     * @throws ServiceException service exception
-     */
-    public void removePageComment(final String commentId) throws ServiceException {
-        final Transaction transaction = commentRepository.beginTransaction();
-
-        try {
-            final JSONObject comment = commentRepository.get(commentId);
-            final String pageId = comment.getString(Comment.COMMENT_ON_ID);
-            commentRepository.remove(commentId);
-            decPageCommentCount(pageId);
-
-            transaction.commit();
-        } catch (final Exception e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-
-            LOGGER.log(Level.ERROR, "Removes a comment of a page failed", e);
-            throw new ServiceException(e);
-        }
     }
 
     /**
@@ -522,22 +361,6 @@ public class CommentMgmtService {
     }
 
     /**
-     * Page comment count +1 for an page specified by the given page id.
-     *
-     * @param pageId the given page id
-     * @throws JSONException       json exception
-     * @throws RepositoryException repository exception
-     */
-    public void incPageCommentCount(final String pageId) throws JSONException, RepositoryException {
-        final JSONObject page = pageRepository.get(pageId);
-        final JSONObject newPage = new JSONObject(page, JSONObject.getNames(page));
-        final int commentCnt = page.getInt(Page.PAGE_COMMENT_COUNT);
-
-        newPage.put(Page.PAGE_COMMENT_COUNT, commentCnt + 1);
-        pageRepository.update(pageId, newPage);
-    }
-
-    /**
      * Article comment count -1 for an article specified by the given article id.
      *
      * @param articleId the given article id
@@ -548,26 +371,8 @@ public class CommentMgmtService {
         final JSONObject article = articleRepository.get(articleId);
         final JSONObject newArticle = new JSONObject(article, JSONObject.getNames(article));
         final int commentCnt = article.getInt(Article.ARTICLE_COMMENT_COUNT);
-
         newArticle.put(Article.ARTICLE_COMMENT_COUNT, commentCnt - 1);
-
-        articleRepository.update(articleId, newArticle);
-    }
-
-    /**
-     * Page comment count -1 for an page specified by the given page id.
-     *
-     * @param pageId the given page id
-     * @throws JSONException       json exception
-     * @throws RepositoryException repository exception
-     */
-    private void decPageCommentCount(final String pageId) throws JSONException, RepositoryException {
-        final JSONObject page = pageRepository.get(pageId);
-        final JSONObject newPage = new JSONObject(page, JSONObject.getNames(page));
-        final int commentCnt = page.getInt(Page.PAGE_COMMENT_COUNT);
-
-        newPage.put(Page.PAGE_COMMENT_COUNT, commentCnt - 1);
-        pageRepository.update(pageId, newPage);
+        articleRepository.update(articleId, newArticle, Article.ARTICLE_COMMENT_COUNT);
     }
 
     /**

@@ -36,6 +36,7 @@ import org.b3log.solo.event.B3ArticleSender;
 import org.b3log.solo.event.EventTypes;
 import org.b3log.solo.model.*;
 import org.b3log.solo.repository.*;
+import org.b3log.solo.util.GitHubs;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -51,7 +52,7 @@ import static org.b3log.solo.model.Article.*;
  * Article management service.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.3.0.0, Feb 10, 2019
+ * @version 1.3.1.4, Jun 6, 2019
  * @since 0.3.5
  */
 @Service
@@ -73,6 +74,12 @@ public class ArticleMgmtService {
      */
     @Inject
     private ArticleRepository articleRepository;
+
+    /**
+     * Page repository.
+     */
+    @Inject
+    private PageRepository pageRepository;
 
     /**
      * User repository.
@@ -141,10 +148,148 @@ public class ArticleMgmtService {
     private StatisticQueryService statisticQueryService;
 
     /**
+     * Init service.
+     */
+    @Inject
+    private InitService initService;
+
+    /**
      * Tag management service.
      */
     @Inject
     private TagMgmtService tagMgmtService;
+
+    /**
+     * Option query service.
+     */
+    @Inject
+    private OptionQueryService optionQueryService;
+
+    /**
+     * Option management service.
+     */
+    @Inject
+    private OptionMgmtService optionMgmtService;
+
+    /**
+     * Refreshes GitHub repos. 同步拉取 GitHub 仓库 https://github.com/b3log/solo/issues/12514
+     */
+    public void refreshGitHub() {
+        if (!initService.isInited()) {
+            return;
+        }
+
+        JSONObject admin;
+        try {
+            admin = userRepository.getAdmin();
+        } catch (final Exception e) {
+            return;
+        }
+
+        if (null == admin) {
+            return;
+        }
+
+        final String githubId = admin.optString(UserExt.USER_GITHUB_ID);
+        final JSONArray gitHubRepos = GitHubs.getGitHubRepos(githubId);
+        if (null == gitHubRepos || gitHubRepos.isEmpty()) {
+            return;
+        }
+
+        JSONObject githubReposOpt = optionQueryService.getOptionById(Option.ID_C_GITHUB_REPOS);
+        if (null == githubReposOpt) {
+            githubReposOpt = new JSONObject();
+            githubReposOpt.put(Keys.OBJECT_ID, Option.ID_C_GITHUB_REPOS);
+            githubReposOpt.put(Option.OPTION_CATEGORY, Option.CATEGORY_C_GITHUB);
+        }
+        githubReposOpt.put(Option.OPTION_VALUE, gitHubRepos.toString());
+
+        try {
+            optionMgmtService.addOrUpdateOption(githubReposOpt);
+        } catch (final Exception e) {
+            LOGGER.log(Level.ERROR, "Updates github repos option failed", e);
+
+            return;
+        }
+
+        final StringBuilder contentBuilder = new StringBuilder();
+        contentBuilder.append("<!-- 该页面会被定时任务自动覆盖，所以请勿手工更新 -->\n");
+        contentBuilder.append("<!-- 如果你有更漂亮的排版方式，请发 issue 告诉我们 -->\n\n");
+        for (int i = 0; i < gitHubRepos.length(); i++) {
+            final JSONObject repo = gitHubRepos.optJSONObject(i);
+            final String url = repo.optString("githubrepoHTMLURL");
+            final String desc = repo.optString("githubrepoDescription");
+            final String name = repo.optString("githubrepoName");
+            final String stars = repo.optString("githubrepoStargazersCount");
+            final String watchers = repo.optString("githubrepoWatchersCount");
+            final String forks = repo.optString("githubrepoForksCount");
+            final String lang = repo.optString("githubrepoLanguage");
+            final String hp = repo.optString("githubrepoHomepage");
+
+            String stat = "<span style=\"font-size: 12px;\">[🤩`{watchers}`]({url}/watchers \"关注数\")&nbsp;&nbsp;[⭐️`{stars}`]({url}/stargazers \"收藏数\")&nbsp;&nbsp;[🖖`{forks}`]({url}/network/members \"分叉数\")";
+            stat = stat.replace("{watchers}", watchers).replace("{stars}", stars).replace("{url}", url).replace("{forks}", forks);
+            if (StringUtils.isNotBlank(hp)) {
+                stat += "&nbsp;&nbsp;[\uD83C\uDFE0`{hp}`]({hp} \"项目主页\")";
+                stat = stat.replace("{hp}", hp);
+            }
+            stat += "</span>";
+            contentBuilder.append("### " + (i + 1) + ". [" + name + "](" + url + ") <kbd title=\"主要编程语言\">" + lang + "</kbd> " + stat + "\n\n" + desc + "\n\n");
+            if (i < gitHubRepos.length() - 1) {
+                contentBuilder.append("\n\n---\n\n");
+            }
+        }
+        final String content = contentBuilder.toString();
+
+        try {
+            final String permalink = "/my-github-repos";
+            JSONObject article = articleRepository.getByPermalink(permalink);
+            if (null == article) {
+                article = new JSONObject();
+                article.put(Article.ARTICLE_AUTHOR_ID, admin.optString(Keys.OBJECT_ID));
+                article.put(Article.ARTICLE_TITLE, "我在 GitHub 上的开源项目");
+                article.put(Article.ARTICLE_ABSTRACT, Article.getAbstractText(content));
+                article.put(Article.ARTICLE_COMMENT_COUNT, 0);
+                article.put(Article.ARTICLE_TAGS_REF, "开源,GitHub");
+                article.put(Article.ARTICLE_PERMALINK, permalink);
+                article.put(Article.ARTICLE_COMMENTABLE, true);
+                article.put(Article.ARTICLE_CONTENT, content);
+                article.put(Article.ARTICLE_VIEW_PWD, "");
+                article.put(Article.ARTICLE_STATUS, Article.ARTICLE_STATUS_C_PUBLISHED);
+                article.put(Common.POST_TO_COMMUNITY, false);
+
+                final JSONObject addArticleReq = new JSONObject();
+                addArticleReq.put(Article.ARTICLE, article);
+                addArticle(addArticleReq);
+            } else {
+                article.put(Article.ARTICLE_CONTENT, content);
+
+                final String articleId = article.optString(Keys.OBJECT_ID);
+                final Transaction transaction = articleRepository.beginTransaction();
+                articleRepository.update(articleId, article);
+                transaction.commit();
+            }
+
+            final Transaction transaction = pageRepository.beginTransaction();
+            JSONObject page = pageRepository.getByPermalink(permalink);
+            if (null == page) {
+                page = new JSONObject();
+                final int maxOrder = pageRepository.getMaxOrder();
+                page.put(Page.PAGE_ORDER, maxOrder + 1);
+                page.put(Page.PAGE_TITLE, "我的开源");
+                page.put(Page.PAGE_OPEN_TARGET, "_self");
+                page.put(Page.PAGE_PERMALINK, permalink);
+                page.put(Page.PAGE_ICON, "/images/github-icon.png");
+                pageRepository.add(page);
+            } else {
+                page.put(Page.PAGE_OPEN_TARGET, "_self");
+                page.put(Page.PAGE_ICON, "/images/github-icon.png");
+                pageRepository.update(page.optString(Keys.OBJECT_ID), page);
+            }
+            transaction.commit();
+        } catch (final Exception e) {
+            LOGGER.log(Level.ERROR, "Updates github repos page failed", e);
+        }
+    }
 
     /**
      * Pushes an article specified by the given article id to community.
@@ -179,7 +324,7 @@ public class ArticleMgmtService {
         final JSONObject newArticle = new JSONObject(article, JSONObject.getNames(article));
         final int commentCnt = article.getInt(Article.ARTICLE_COMMENT_COUNT);
         newArticle.put(Article.ARTICLE_COMMENT_COUNT, commentCnt + 1);
-        articleRepository.update(articleId, newArticle);
+        articleRepository.update(articleId, newArticle, ARTICLE_COMMENT_COUNT);
     }
 
     /**
@@ -194,7 +339,7 @@ public class ArticleMgmtService {
         try {
             final JSONObject article = articleRepository.get(articleId);
             article.put(ARTICLE_STATUS, ARTICLE_STATUS_C_DRAFT);
-            articleRepository.update(articleId, article);
+            articleRepository.update(articleId, article, ARTICLE_STATUS);
 
             transaction.commit();
         } catch (final Exception e) {
@@ -222,7 +367,7 @@ public class ArticleMgmtService {
         try {
             final JSONObject topArticle = articleRepository.get(articleId);
             topArticle.put(ARTICLE_PUT_TOP, top);
-            articleRepository.update(articleId, topArticle);
+            articleRepository.update(articleId, topArticle, ARTICLE_PUT_TOP);
 
             transaction.commit();
         } catch (final Exception e) {
@@ -299,11 +444,10 @@ public class ArticleMgmtService {
             final String articleAbstractText = Article.getAbstractText(article);
             article.put(ARTICLE_ABSTRACT_TEXT, articleAbstractText);
 
-            // Update
-            final boolean postToCommunity = article.optBoolean(Common.POST_TO_COMMUNITY, true);
-            article.remove(Common.POST_TO_COMMUNITY); // Do not persist this property
+            final boolean postToCommunity = article.optBoolean(Common.POST_TO_COMMUNITY);
+            article.remove(Common.POST_TO_COMMUNITY);
             articleRepository.update(articleId, article);
-            article.put(Common.POST_TO_COMMUNITY, postToCommunity); // Restores the property
+            article.put(Common.POST_TO_COMMUNITY, postToCommunity);
 
             final boolean publishNewArticle = Article.ARTICLE_STATUS_C_DRAFT == oldArticle.optInt(ARTICLE_STATUS) && Article.ARTICLE_STATUS_C_PUBLISHED == article.optInt(ARTICLE_STATUS);
             final JSONObject eventData = new JSONObject();
@@ -347,9 +491,10 @@ public class ArticleMgmtService {
      *                          "articleTags": "tag1,tag2,tag3",
      *                          "articleStatus": int, // 0: published, 1: draft
      *                          "articlePermalink": "", // optional
-     *                          "postToCommunity": boolean, // optional, default is true
+     *                          "postToCommunity": boolean, // optional
      *                          "articleSignId": "" // optional, default is "0",
      *                          "articleCommentable": boolean,
+     *                          "articleCommentCount": int, // optional, default is 0
      *                          "articleViewPwd": "",
      *                          "oId": "" // optional, generate it if not exists this key
      *                          }
@@ -362,34 +507,12 @@ public class ArticleMgmtService {
 
         try {
             final JSONObject article = requestJSONObject.getJSONObject(Article.ARTICLE);
-            final String ret = addArticleInternal(article);
-            transaction.commit();
-
-            return ret;
-        } catch (final Exception e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
+            String ret = article.optString(Keys.OBJECT_ID);
+            if (StringUtils.isBlank(ret)) {
+                ret = Ids.genTimeMillisId();
+                article.put(Keys.OBJECT_ID, ret);
             }
 
-            throw new ServiceException(e.getMessage());
-        }
-    }
-
-    /**
-     * Adds the specified article for internal invocation purposes.
-     *
-     * @param article the specified article
-     * @return generated article id
-     * @throws ServiceException service exception
-     */
-    public String addArticleInternal(final JSONObject article) throws ServiceException {
-        String ret = article.optString(Keys.OBJECT_ID);
-        if (StringUtils.isBlank(ret)) {
-            ret = Ids.genTimeMillisId();
-            article.put(Keys.OBJECT_ID, ret);
-        }
-
-        try {
             String tagsString = article.optString(Article.ARTICLE_TAGS_REF);
             tagsString = Tag.formatTags(tagsString);
             if (StringUtils.isBlank(tagsString)) {
@@ -399,7 +522,7 @@ public class ArticleMgmtService {
             final String[] tagTitles = tagsString.split(",");
             final JSONArray tags = tag(tagTitles, article);
 
-            article.put(Article.ARTICLE_COMMENT_COUNT, 0);
+            article.put(Article.ARTICLE_COMMENT_COUNT, article.optInt(Article.ARTICLE_COMMENT_COUNT));
             article.put(Article.ARTICLE_VIEW_COUNT, 0);
             if (!article.has(Article.ARTICLE_CREATED)) {
                 article.put(Article.ARTICLE_CREATED, System.currentTimeMillis());
@@ -425,27 +548,26 @@ public class ArticleMgmtService {
             final String articleAbstractText = Article.getAbstractText(article);
             article.put(ARTICLE_ABSTRACT_TEXT, articleAbstractText);
 
-            final boolean postToCommunity = article.optBoolean(Common.POST_TO_COMMUNITY, true);
-            article.remove(Common.POST_TO_COMMUNITY); // Do not persist this property
-
+            final boolean postToCommunity = article.optBoolean(Common.POST_TO_COMMUNITY);
+            article.remove(Common.POST_TO_COMMUNITY);
             articleRepository.add(article);
+            transaction.commit();
 
-            article.put(Common.POST_TO_COMMUNITY, postToCommunity); // Restores the property
-
+            article.put(Common.POST_TO_COMMUNITY, postToCommunity);
             if (Article.ARTICLE_STATUS_C_PUBLISHED == article.optInt(ARTICLE_STATUS)) {
                 final JSONObject eventData = new JSONObject();
                 eventData.put(Article.ARTICLE, article);
                 eventManager.fireEventAsynchronously(new Event<>(EventTypes.ADD_ARTICLE, eventData));
             }
 
-            article.remove(Common.POST_TO_COMMUNITY);
+            return ret;
         } catch (final Exception e) {
-            LOGGER.log(Level.ERROR, "Adds an article failed", e);
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
 
-            throw new ServiceException(e);
+            throw new ServiceException(e.getMessage());
         }
-
-        return ret;
     }
 
     /**
@@ -488,7 +610,7 @@ public class ArticleMgmtService {
             for (final JSONObject article : randomArticles) {
                 article.put(Article.ARTICLE_RANDOM_DOUBLE, Math.random());
 
-                articleRepository.update(article.getString(Keys.OBJECT_ID), article);
+                articleRepository.update(article.getString(Keys.OBJECT_ID), article, ARTICLE_RANDOM_DOUBLE);
             }
 
             transaction.commit();
@@ -528,7 +650,7 @@ public class ArticleMgmtService {
 
         try {
             article.put(Article.ARTICLE_VIEW_COUNT, article.getInt(Article.ARTICLE_VIEW_COUNT) + 1);
-            articleRepository.update(articleId, article);
+            articleRepository.update(articleId, article, ARTICLE_VIEW_COUNT);
 
             transaction.commit();
         } catch (final Exception e) {

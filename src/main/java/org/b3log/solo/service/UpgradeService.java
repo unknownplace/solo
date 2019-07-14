@@ -30,7 +30,7 @@ import org.json.JSONObject;
  * Upgrade service.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.2.1.5, Mar 31, 2019
+ * @version 1.2.1.9, Jul 13, 2019
  * @since 1.2.0
  */
 @Service
@@ -57,11 +57,13 @@ public class UpgradeService {
                 return;
             }
 
-            final String currentVer = preference.getString(Option.ID_C_VERSION);
+            final String currentVer = preference.getString(Option.ID_C_VERSION); // 数据库中的版本
             if (SoloServletListener.VERSION.equals(currentVer)) {
+                // 如果数据库中的版本和运行时版本一致则说明已经是最新版
                 return;
             }
 
+            // 如果版本较老，则调用对应的升级程序进行升级，并贯穿升级下去直到最新版
             switch (currentVer) {
                 case "2.9.9":
                     V299_300.perform();
@@ -75,6 +77,14 @@ public class UpgradeService {
                     V330_340.perform();
                 case "3.4.0":
                     V340_350.perform();
+                case "3.5.0":
+                    V350_360.perform();
+                case "3.6.0":
+                    V360_361.perform();
+                case "3.6.1":
+                    V361_362.perform();
+                case "3.6.2":
+                    V362_363.perform();
 
                     break;
                 default:

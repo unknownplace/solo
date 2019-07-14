@@ -27,13 +27,13 @@ import org.b3log.latke.model.Role;
 import org.b3log.latke.model.User;
 import org.b3log.latke.repository.Query;
 import org.b3log.latke.repository.SortDirection;
+import org.b3log.latke.repository.Transaction;
 import org.b3log.latke.service.ServiceException;
 import org.b3log.latke.service.annotation.Service;
 import org.b3log.latke.util.Paginator;
 import org.b3log.solo.model.Article;
 import org.b3log.solo.model.Comment;
 import org.b3log.solo.model.Common;
-import org.b3log.solo.model.Page;
 import org.b3log.solo.repository.ArticleRepository;
 import org.b3log.solo.repository.CommentRepository;
 import org.b3log.solo.repository.PageRepository;
@@ -52,7 +52,7 @@ import java.util.List;
  * Comment query service.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.3.2.6, Mar 17, 2019
+ * @version 1.3.2.7, Apr 24, 2019
  * @since 0.3.5
  */
 @Service
@@ -114,12 +114,6 @@ public class CommentQueryService {
         }
 
         final String onId = comment.optString(Comment.COMMENT_ON_ID);
-        final String onType = comment.optString(Comment.COMMENT_ON_TYPE);
-
-        if (Page.PAGE.equals(onType)) {
-            return false; // Only admin can access page comment
-        }
-
         final JSONObject article = articleRepository.get(onId);
         if (null == article) {
             return false;
@@ -174,25 +168,24 @@ public class CommentQueryService {
                 final JSONObject comment = comments.getJSONObject(i);
                 String title;
 
-                final String onType = comment.getString(Comment.COMMENT_ON_TYPE);
                 final String onId = comment.getString(Comment.COMMENT_ON_ID);
+                final JSONObject article = articleRepository.get(onId);
+                if (null == article) {
+                    // 某种情况下导致的数据不一致：文章已经被删除了，但是评论还在
+                    // 为了保持数据一致性，需要删除该条评论 https://hacpai.com/article/1556060195022
+                    final Transaction transaction = commentRepository.beginTransaction();
+                    final String commentId = comment.optString(Keys.OBJECT_ID);
+                    commentRepository.remove(commentId);
+                    transaction.commit();
 
-                if (Article.ARTICLE.equals(onType)) {
-                    final JSONObject article = articleRepository.get(onId);
-
-                    title = article.getString(Article.ARTICLE_TITLE);
-                    comment.put(Common.TYPE, Common.ARTICLE_COMMENT_TYPE);
-                } else { // It's a comment of page
-                    final JSONObject page = pageRepository.get(onId);
-
-                    title = page.getString(Page.PAGE_TITLE);
-                    comment.put(Common.TYPE, Common.PAGE_COMMENT_TYPE);
+                    continue;
                 }
 
+                title = article.getString(Article.ARTICLE_TITLE);
+                comment.put(Common.TYPE, Common.ARTICLE_COMMENT_TYPE);
                 comment.put(Common.COMMENT_TITLE, title);
 
                 String commentContent = comment.optString(Comment.COMMENT_CONTENT);
-                commentContent = Emotions.convert(commentContent);
                 commentContent = Markdowns.toHTML(commentContent);
                 commentContent = Markdowns.clean(commentContent);
                 comment.put(Comment.COMMENT_CONTENT, commentContent);
@@ -252,7 +245,6 @@ public class CommentQueryService {
                 }
 
                 String commentContent = comment.optString(Comment.COMMENT_CONTENT);
-                commentContent = Emotions.convert(commentContent);
                 commentContent = Markdowns.toHTML(commentContent);
                 commentContent = Markdowns.clean(commentContent);
                 comment.put(Comment.COMMENT_CONTENT, commentContent);

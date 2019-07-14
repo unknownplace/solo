@@ -44,6 +44,7 @@ import org.b3log.solo.processor.PermalinkHandler;
 import org.b3log.solo.processor.console.*;
 import org.b3log.solo.repository.OptionRepository;
 import org.b3log.solo.service.*;
+import org.b3log.solo.util.Markdowns;
 import org.b3log.solo.util.Skins;
 import org.b3log.solo.util.Solos;
 import org.json.JSONObject;
@@ -58,7 +59,7 @@ import javax.servlet.http.HttpSessionEvent;
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
  * @author <a href="http://vanessa.b3log.org">Vanessa</a>
- * @version 1.11.0.14, Mar 31, 2019
+ * @version 1.11.0.21, Jul 13, 2019
  * @since 0.3.1
  */
 public final class SoloServletListener extends AbstractServletListener {
@@ -71,7 +72,7 @@ public final class SoloServletListener extends AbstractServletListener {
     /**
      * Solo version.
      */
-    public static final String VERSION = "3.5.0";
+    public static final String VERSION = "3.6.3";
 
     /**
      * Bean manager.
@@ -93,9 +94,11 @@ public final class SoloServletListener extends AbstractServletListener {
         final Latkes.RuntimeMode runtimeMode = Latkes.getRuntimeMode();
         final String jdbcUsername = Latkes.getLocalProperty("jdbc.username");
         final String jdbcURL = Latkes.getLocalProperty("jdbc.URL");
+        final boolean markdownHttpAvailable = Markdowns.MARKDOWN_HTTP_AVAILABLE;
 
-        LOGGER.log(Level.INFO, "Solo is booting [pid=" + Solos.currentPID() + ", runtimeDatabase=" + runtimeDatabase + ", runtimeMode=" + runtimeMode +
-                ", jdbc.username=" + jdbcUsername + ", jdbc.URL=" + jdbcURL + "]");
+        LOGGER.log(Level.INFO, "Solo is booting [ver=" + VERSION + ", servletContainer=" + Latkes.getServletInfo(servletContextEvent.getServletContext())
+                + ", os=" + Latkes.getOperatingSystemName() + ", isDocker=" + Latkes.isDocker() + ", markdownHttpAvailable=" + markdownHttpAvailable + ", pid=" + Latkes.currentPID()
+                + ", runtimeDatabase=" + runtimeDatabase + ", runtimeMode=" + runtimeMode + ", jdbc.username=" + jdbcUsername + ", jdbc.URL=" + jdbcURL + "]");
 
         validateSkin();
 
@@ -361,11 +364,9 @@ public final class SoloServletListener extends AbstractServletListener {
         DispatcherServlet.get("/console/categories/{page}/{pageSize}/{windowSize}", categoryConsole::getCategories);
 
         final CommentConsole commentConsole = beanManager.getReference(CommentConsole.class);
-        DispatcherServlet.delete("/console/page/comment/{id}", commentConsole::removePageComment);
         DispatcherServlet.delete("/console/article/comment/{id}", commentConsole::removeArticleComment);
         DispatcherServlet.get("/console/comments/{page}/{pageSize}/{windowSize}", commentConsole::getComments);
         DispatcherServlet.get("/console/comments/article/{id}", commentConsole::getArticleComments);
-        DispatcherServlet.get("/console/comments/page/{id}", commentConsole::getPageComments);
 
         final LinkConsole linkConsole = beanManager.getReference(LinkConsole.class);
         DispatcherServlet.delete("/console/link/{id}", linkConsole::removeLink);
