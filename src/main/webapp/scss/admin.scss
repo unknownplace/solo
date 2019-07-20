@@ -20,7 +20,7 @@
 *
 * @author <a href="http://vanessa.b3log.org">Liyuan Li</a>
 * @author <a href="http://88250.b3log.org">Liang Ding</a>
-* @version 3.1.0.2, Mar 20, 2019
+* @version 3.2.0.0, Jul 17, 2019
 */
 @import "reset";
 @import "function";
@@ -68,6 +68,7 @@ button,
   height: auto;
   outline: none;
   line-height: 18px;
+
   &.small {
     padding: 3px 6px;
     font-size: 12px;
@@ -579,6 +580,7 @@ button#submitArticle:hover {
   line-height: 24px;
   margin: 10px;
   text-align: center;
+
   button:first-child {
     margin-left: 10px;
   }
@@ -616,22 +618,34 @@ button#submitArticle:hover {
 
 /* start about */
 .about-logo {
-  float: left;
-  margin: 20px 0 0 20px;
+  margin: 0 40px 0 20px;
+  align-self: center;
 }
 
 .about-margin {
-  font-size: 20px;
+  font-size: 18px;
   margin: 20px 0;
 }
 
-.vditor-reset .about-list li {
+.about__panel .about-list li {
   border: 0;
+  padding: 0;
+  margin-left: 24px;
 }
 
-.vditor-reset .about-list li:hover {
+.about__panel .about-list li:hover {
   background-color: #fff;
   text-decoration: underline;
+}
+
+.ft {
+  &__fade {
+    color: rgba(0, 0, 0, .38)
+  }
+
+  &__green {
+    color: #569e3d;
+  }
 }
 
 /* end about */
